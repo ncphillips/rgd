@@ -25,6 +25,8 @@ const usage = `Usage:
   rgd inspect [--json] ID      Read a saved review
   rgd open ID                 Reopen an exact saved snapshot in the TUI
   rgd guide set ID --file PATH Publish a snapshot-bound walkthrough
+  rgd skill setup             Choose agents and install the skill interactively
+  rgd skill show              Print the current agent workflow
 
 TARGET comes first; BASE overrides its default parent or merge-base with main.
 Use -- before a revision that collides with a subcommand name.
@@ -33,6 +35,9 @@ Non-terminal output falls back to plain text.
 `
 
 func Run(ctx context.Context, args []string, out, stderr io.Writer) error {
+	if len(args) > 0 && args[0] == "skill" {
+		return skillCommand(ctx, args[1:], out, stderr)
+	}
 	if len(args) > 0 && args[0] == "guide" {
 		return setGuide(args[1:], out)
 	}
