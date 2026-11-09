@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install Jujutsu for integration tests
+        run: bash scripts/ci-install-jj.sh
+      - name: Check formatting
+        shell: bash
+        run: |
+          files=$(gofmt -l cmd internal skills)
+          if [[ -n "$files" ]]; then
+            printf 'Run gofmt on:\n%s\n' "$files"
+            exit 1
+          fi
+      - name: Verify dependencies
+        run: go mod verify
+      - name: Vet
+        run: go vet ./...
+      - name: Test with race detector
+        run: go test -race -count=1 ./...
+      - name: Test installer
+        run: python3 scripts/test-install.py
+      - name: Check shell syntax
+        run: |
+          sh -n install.sh
+          bash -n scripts/build-release.sh
+          bash -n scripts/ci-install-jj.sh
+      - name: Build
+        run: go build ./cmd/rgd

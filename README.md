@@ -5,6 +5,43 @@ Kitty graphics protocol. Inspired by Linear's guided reviews.
 
 **Status:** interactive diff browser and agent-authored walkthroughs implemented.
 
+## Install
+
+Prebuilt releases support macOS and Linux on Apple Silicon/arm64 and
+Intel/amd64. Install [Jujutsu (`jj`)](https://docs.jj-vcs.dev/latest/install-and-setup/)
+separately; Go is only required when building from source. Rex, Ghostty, or Kitty
+provides the richer typography, with a text fallback in other terminals.
+
+Once the first release is published:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ncphillips/rgd/main/install.sh | sh
+```
+
+The installer resolves the latest stable GitHub Release, verifies its archive
+against the release's SHA-256 checksums, and installs `rgd` into `~/.local/bin`.
+It does not use sudo, edit shell configuration, or install agent skills. Add the
+directory to your `PATH` if necessary, then optionally configure your agents:
+
+```sh
+export PATH="$HOME/.local/bin:$PATH"
+rgd --help
+rgd skill setup
+```
+
+To review the installer first, download `install.sh` from this repository and run
+`sh install.sh`. To pin a version (including a prerelease) or choose another
+absolute installation directory:
+
+```sh
+sh install.sh --version v0.1.0 --bin-dir "$HOME/.local/bin"
+```
+
+`RGD_VERSION` and `RGD_INSTALL_DIR` provide equivalent defaults. Re-run the
+installer to upgrade. Direct downloads and `SHA256SUMS` are available on the
+[Releases page](https://github.com/ncphillips/rgd/releases).
+Before a release exists, use the source-install instructions below.
+
 ## Development
 
 Requires Go 1.27+ and `jj` on `PATH`.
@@ -37,7 +74,47 @@ If `~/.local/bin` isn't on your `PATH`, add it or choose a different absolute
 go build -o rgd ./cmd/rgd
 go test -race ./...
 go vet ./...
+python3 scripts/test-install.py
 ```
+
+### CI and releases
+
+[CI](.github/workflows/ci.yml) runs on branch pushes and pull requests on Linux
+and macOS. It installs checksum-verified Jujutsu v0.43.0 so integration tests
+actually run, checks formatting and dependencies, runs vet and race-enabled
+tests, tests the installer offline, and builds the CLI.
+
+Pushing a version tag such as `v0.1.0` triggers the
+[release workflow](.github/workflows/release.yml). It first runs the same tests,
+then builds four archives and a checksum manifest:
+
+```text
+rgd_v0.1.0_darwin_amd64.tar.gz
+rgd_v0.1.0_darwin_arm64.tar.gz
+rgd_v0.1.0_linux_amd64.tar.gz
+rgd_v0.1.0_linux_arm64.tar.gz
+SHA256SUMS
+```
+
+Each archive contains `rgd`, `README.md`, and `VERSION`. Builds disable CGO, so
+Linux releases do not depend on a particular libc. The workflow uploads assets
+to a draft GitHub Release before publishing it with generated release notes.
+Tags with a suffix such as `v0.1.0-rc.1` are marked as prereleases and do not
+replace the latest stable release. A rerun can finish an existing draft, but
+will not overwrite a published release. No credentials beyond the workflow's
+repository-scoped `GITHUB_TOKEN` are required.
+
+Build the same artifacts locally without publishing anything:
+
+```sh
+bash scripts/build-release.sh v0.1.0
+python3 scripts/test-release.py v0.1.0 dist
+```
+
+The default output is `dist/` (ignored by version control). Use a fresh output
+directory for each build, or pass a different one as the second argument.
+
+### Run locally
 
 Running `rgd` in a terminal opens an interactive, full-screen diff browser with
 a walkthrough sidebar and colored additions, deletions, and hunk headers. It runs in
